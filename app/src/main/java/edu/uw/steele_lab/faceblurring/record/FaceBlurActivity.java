@@ -15,9 +15,7 @@ import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
-import org.bytedeco.javacv.FrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameConverter;
-import org.w3c.dom.Text;
 
 import edu.uw.steele_lab.faceblurring.R;
 
@@ -43,23 +41,35 @@ public class FaceBlurActivity extends Activity {
     private int counter = 0;
     private opencv_objdetect.CascadeClassifier faceDetector;
     private opencv_core.RectVector past_faces;
-    private File ffmpeg_link = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "stream.mp4");
+    private File ffmpeg_link = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "sample_video.mp4");
     private File return_link = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "result.mp4");
     private FFmpegFrameRecorder recorder;
     private int sampleAudioRateInHz = 44100;
-    private int imageWidth = 660;
-    private int imageHeight = 480;
+    // image width and height should depend on the width and height of input video
+    // but now they are hard coded because we need width and height information to define FFmpegFrameRecorder
+    // TO DO:
+    // initialize FFmpegFrameRecorder after FFmpegFrameGrabber grabs the first frame of the video
+    // so that imageWidth and imageHeight can be assigned according to input video
+    private int imageWidth = 1920;
+    private int imageHeight = 1080;
     private int frameRate = 30;
-    private ProgressBar mProgress;
     private Button mButton;
     private TextView textView;
+
+    // set max and min face sizes to 0.25 of imageHeight and 0.75 of imageHeight
+    // this is just a temp setting please change them when needed
+    private int minLength = (int)(0.25 * (double)imageHeight);
+    private int maxLength = (int)(0.75 * (double)imageHeight);
+    private opencv_core.Size minFace = new opencv_core.Size(minLength, minLength);
+    private opencv_core.Size maxFace = new opencv_core.Size(maxLength, maxLength);
+
+    private OpenCVFrameConverter.ToIplImage convertToIplImage = new OpenCVFrameConverter.ToIplImage();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         setContentView(R.layout.activity_faceblur);
-//        mProgress = (ProgressBar) findViewById(R.id.progressBar);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         textView = (TextView) findViewById(R.id.textView);
         mButton = (Button) findViewById(R.id.button);
         mButton.setOnClickListener(new View.OnClickListener() {
@@ -75,42 +85,31 @@ public class FaceBlurActivity extends Activity {
                 textView.setText("Done!");
             }
         });
-
-//        mProgress.setProgress(100);
-
     }
 
     public void readAndBlur() {
 
-        // Load the video to videoGrabber
-        FrameGrabber videoGrabber = new FFmpegFrameGrabber(ffmpeg_link);
+        // Load the video to grabber
+        FrameGrabber grabber = new FFmpegFrameGrabber(ffmpeg_link);
 
-        //recorder = new FFmpegFrameRecorder(getFilePath(), channel);
-//        recorder = new FFmpegFrameRecorder(return_link, imageHeight, imageWidth, videoGrabber.getAudioChannels());
-//        recorder.setVideoCodec(videoGrabber.getVideoCodec());
-//        recorder.setFormat("mp4");
-//        recorder.setFrameRate(videoGrabber.getFrameRate());
-//        recorder.setSampleFormat(videoGrabber.getSampleFormat());
-//        recorder.setSampleRate(videoGrabber.getSampleRate());
+        // declare and initialize recorder here
         recorder = new FFmpegFrameRecorder(return_link, imageHeight, imageWidth, 1);
-
         recorder.setFormat("mp4");
         recorder.setSampleRate(sampleAudioRateInHz);
+
         // Set in the surface changed method
         recorder.setFrameRate(frameRate);
 
         Log.i(LOG_TAG, "recorder initialize success");
 
-        Log.d("bharat", " Audio channels = " + videoGrabber.getAudioChannels());
-
+        // start graber and recorder here
         try
         {
-            videoGrabber.setFormat("mp4");
-            videoGrabber.start();
+            grabber.setFormat("mp4");
+            grabber.start();
         }catch (org.bytedeco.javacv.FrameGrabber.Exception e){
             Log.e("javacv", "Failed to start grabber" + e);
         }
-
         try
         {
             recorder.start();
@@ -118,31 +117,24 @@ public class FaceBlurActivity extends Activity {
             Log.e("javacv", "Failed to start recorder" + e);
         }
 
-
         Frame vFrame = null;
 
         do{
             try{
                 // Grab an image Frame from the video file
-                vFrame = videoGrabber.grabFrame();
+                vFrame = grabber.grabFrame();
                 if(vFrame != null){
                     try{
-//                        Bitmap input = converterToBitmap.convert(vFrame);
-//                        // Convert our bitmap to a Mat so the detector can use it
-//                        Mat inputMat = new Mat(input.getWidth(), input.getHeight(), CV_8UC1);
-//                        bitmapToMat(input, inputMat);
                         Frame newFrame = null;
                         if (vFrame.image != null) {
-//                            newFrame = ProcessVideo(convertToBGR(vFrame));
+                            // ProcessVideo do the face blurring
                             newFrame = ProcessVideo(vFrame);
                         }
-                        recorder.setTimestamp(videoGrabber.getTimestamp());
+                        recorder.setTimestamp(grabber.getTimestamp());
                         recorder.record(newFrame);
                     } catch (Exception e){
                         Log.e("javacv", "video record frame failed: "+ e);
                     }
-
-
                 }
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e){
                 Log.e("javacv", "video grabFrame failed: "+ e);
@@ -152,7 +144,7 @@ public class FaceBlurActivity extends Activity {
 
         try
         {
-            videoGrabber.stop();
+            grabber.stop();
         }catch (org.bytedeco.javacv.FrameGrabber.Exception e)
         {
             Log.e("javacv", "failed to stop video grabber", e);
@@ -167,11 +159,23 @@ public class FaceBlurActivity extends Activity {
         }
     }
 
+    public static opencv_core.IplImage rotate(opencv_core.IplImage src, int angle) {
+        opencv_core.IplImage img = opencv_core.IplImage.create(src.height(), src.width(), src.depth(), src.nChannels());
+        opencv_core.cvTranspose(src, img);
+        opencv_core.cvFlip(img, img, angle);
+        return img;
+    }
+
+    public Frame rotateWithFrame (Frame frame) {
+        opencv_core.IplImage ipl = convertToIplImage.convert(frame);
+        ipl = rotate(ipl, 90);
+        return convertToIplImage.convert(ipl);
+    }
+
     public Frame ProcessVideo (Frame frame) throws Exception {
         // Convert frame to Mat
         // Do the detection
-        opencv_core.Mat processedMat = FaceDetector(converterToMat.convert(frame));
-//        Mat processedMat = converterToMat.convert(frame);
+        opencv_core.Mat processedMat = FaceDetector(converterToMat.convert(rotateWithFrame(frame)));
         // Convert processedMat back to a Frame
         frame = converterToMat.convert(processedMat);
         return frame;
@@ -207,7 +211,7 @@ public class FaceBlurActivity extends Activity {
         opencv_core.RectVector faces = new opencv_core.RectVector();
 //        faceDetector.detectMultiScale(videoMatGray, faces);
 
-        faceDetector.detectMultiScale( videoMatGray, faces, 1.1, 3, 0|CV_HAAR_SCALE_IMAGE, new opencv_core.Size(30, 30), new opencv_core.Size(150, 150));
+        faceDetector.detectMultiScale( videoMatGray, faces, 1.1, 3, 0|CV_HAAR_SCALE_IMAGE, minFace, maxFace);
 
         if (faces.size() == 0 && counter < 3) {
             faces = past_faces;

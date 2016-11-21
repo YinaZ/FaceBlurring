@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">JavaCV-android-example</string>
+    <string name="app_name">FaceBlurring</string>
+    <string name="capture_video_new">Capture Video!</string>
 </resources>

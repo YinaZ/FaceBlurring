@@ -1,20 +1,14 @@
 package edu.uw.steele_lab.faceblurring.record;
 
-import android.content.res.AssetManager;
-import android.content.res.Resources;
 import android.app.Activity;
-import android.app.Application;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
-import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
-import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
 import android.hardware.Camera.PreviewCallback;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
@@ -28,29 +22,15 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.GridLayout;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.bytedeco.javacpp.opencv_objdetect;
-import org.bytedeco.javacv.AndroidFrameConverter;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
-import org.bytedeco.javacv.FFmpegFrameGrabber;
-import org.bytedeco.javacv.FFmpegFrameFilter;
 import org.bytedeco.javacv.Frame;
-import org.bytedeco.javacv.FrameConverter;
-import org.bytedeco.javacv.FrameGrabber;
-import org.bytedeco.javacv.FrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameConverter;
-import org.bytedeco.javacv.OpenCVFrameGrabber;
 import edu.uw.steele_lab.faceblurring.R;
 
-import java.io.*;
-import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -60,14 +40,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_face.*;
-import static org.bytedeco.javacpp.opencv_highgui.*;
 import static org.bytedeco.javacpp.opencv_imgproc.*;
-import static org.bytedeco.javacpp.opencv_imgcodecs.*;
-import static org.bytedeco.javacpp.opencv_objdetect.*;
 
-
-import java.net.URL;
 import org.bytedeco.javacpp.*;
 
 
@@ -84,8 +58,6 @@ public class RecordActivity extends Activity implements OnClickListener {
     private final int bg_screen_height = 500;
     private final int bg_width = 1123;
     private final int bg_height = 715;
-//    private final int live_width = 640;
-//    private final int live_height = 480;
     private final int live_width = 480;
     private final int live_height = 640;
 
@@ -99,10 +71,12 @@ public class RecordActivity extends Activity implements OnClickListener {
     int imagesIndex, samplesIndex;
     private PowerManager.WakeLock mWakeLock;
     private File ffmpeg_link = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "stream.mp4");
-    private File return_link = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "result.mp4");
     private FFmpegFrameRecorder recorder;
     private boolean isPreviewOn = false;
     private int sampleAudioRateInHz = 44100;
+
+    // width and height must be multiple of 6
+    // the frames are first
     private int imageWidth = 660;
     private int imageHeight = 480;
 
@@ -120,16 +94,12 @@ public class RecordActivity extends Activity implements OnClickListener {
     private Button btnRecorderControl;
     private OpenCVFrameConverter.ToIplImage convertToIplImage = new OpenCVFrameConverter.ToIplImage();
     private OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
-    private AndroidFrameConverter afc = new AndroidFrameConverter();
     private TextView message;
-//     private FFmpegFrameFilter filter = new FFmpegFrameFilter("transpose=cclock_flip", imageWidth, imageHeight);
-
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // set to portrait
-        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         setContentView(R.layout.activity_record);
 
@@ -200,7 +170,6 @@ public class RecordActivity extends Activity implements OnClickListener {
     }
 
     private void initLayout() {
-
         /* get size of screen */
         Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
         screenWidth = display.getWidth();
@@ -218,7 +187,6 @@ public class RecordActivity extends Activity implements OnClickListener {
         btnRecorderControl = (Button) findViewById(R.id.recorder_control);
         btnRecorderControl.setText("Start");
         btnRecorderControl.setOnClickListener(this);
-
 
         // add message
         message = (TextView) findViewById(R.id.textView1);
@@ -242,9 +210,6 @@ public class RecordActivity extends Activity implements OnClickListener {
         controlInflater = LayoutInflater.from(getBaseContext());
         View viewControl = controlInflater.inflate(R.layout.overlay, null);
         this.addContentView(viewControl, layoutParam);
-
-        //test
-        //initRecorder();
 
         cameraDevice = Camera.open();
         Log.i(LOG_TAG, "cameara open");
@@ -275,8 +240,6 @@ public class RecordActivity extends Activity implements OnClickListener {
 
         Log.i(LOG_TAG, "ffmpeg_url: " + ffmpeg_link.getAbsolutePath());
 
-//        recorder = new FFmpegFrameRecorder(ffmpeg_link, imageWidth, imageHeight, 1);
-
         recorder = new FFmpegFrameRecorder(ffmpeg_link, imageHeight, imageWidth, 1);
 
         recorder.setFormat("mp4");
@@ -290,17 +253,7 @@ public class RecordActivity extends Activity implements OnClickListener {
         audioThread = new Thread(audioRecordRunnable);
         runAudioThread = true;
 
-        //TryProcessVideo(getFilePath());
-//        filter.setPixelFormat(avutil.AV_PIX_FMT_NV21); // default camera format on Android
-//        try{
-//            filter.start();
-//        } catch (FFmpegFrameFilter.Exception e) {
-//            e.printStackTrace();
-//        }
-
     }
-
-
 
     public void startRecording() {
         initRecorder();
@@ -396,15 +349,21 @@ public class RecordActivity extends Activity implements OnClickListener {
     public Frame convertToBGR (Frame frame) {
         // to bgr
         Mat mat = converterToMat.convert(frame);
-        cvtColor(mat, mat, COLOR_YUV2BGR_NV21);
+        Mat outputMat = new Mat();
+        cvtColor(mat, outputMat, COLOR_YUV2BGR_NV21);
+
         // rotate
-        frame = converterToMat.convert(mat);
+        // an easier way to rotate Frames is to use FFmpegFrameFilter
+        // however using it resulted in green and purple shadow on the Frames
+        // so we need to convert the Frames to IplImages
+        // use IplImage rotate() and then convert them back to Frames
+        frame = converterToMat.convert(outputMat);
+
         IplImage ipl = convertToIplImage.convert(frame);
         ipl = rotate(ipl, 90);
 
         return convertToIplImage.convert(ipl);
     }
-
 
 
     @Override
@@ -582,7 +541,6 @@ public class RecordActivity extends Activity implements OnClickListener {
         }
 
 
-
         @Override
         public void onPreviewFrame(byte[] data, Camera camera) {
             if(audioRecord == null || audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
@@ -594,24 +552,8 @@ public class RecordActivity extends Activity implements OnClickListener {
                 yuvImage = images[i];
                 timestamps[i] = 1000 * (System.currentTimeMillis() - startTime);
             }
-            /* get video data */
             if(yuvImage != null && recording) {
                 ((ByteBuffer) yuvImage.image[0].position(0)).put(data);
-                //yuvImage = afc.convert(data, imageWidth, imageHeight);
-
-
-//                if( mYuv != null ) mYuv.release();
-//                if( mRgba != null) mRgba.release();
-//                mYuv = new Mat( imageHeight + imageHeight/2, imageWidth, CV_8UC2);
-//                mYuv.data().put(data);
-//
-//                mRgba = new Mat();
-//                cvtColor( mYuv, mRgba, COLOR_YUV2BGR_NV21);
-//                yuvImage = converterToMat.convert(mRgba);
-//
-//                int a = mRgba.channels();
-//                int b = mYuv.channels();
-
                 if(RECORD_LENGTH <= 0) {
                     try {
                         Log.v(LOG_TAG, "Writing Frame");
@@ -619,6 +561,8 @@ public class RecordActivity extends Activity implements OnClickListener {
                         if(t > recorder.getTimestamp()) {
                             recorder.setTimestamp(t);
                         }
+                        // the video recorded is in landscape mode and is in YUV21 color mode
+                        // so we need to convert the frames to BGR mode and rotate them using convertToBGR()
                         recorder.record(convertToBGR(yuvImage));
                     } catch(FFmpegFrameRecorder.Exception e) {
                         Log.v(LOG_TAG, e.getMessage());
