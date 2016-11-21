@@ -75,7 +75,6 @@ public class FaceBlurActivity extends Activity {
         mButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                textView.setText("Please Wait...");
                 try {
                     Init_Classifier();
                 } catch (java.lang.Exception e){
