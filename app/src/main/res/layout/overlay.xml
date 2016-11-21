@@ -10,7 +10,7 @@
         android:id="@+id/OvalView"
         android:layout_width="100dp"
         android:layout_height="100dp"
-        android:background="@drawable/rectangle"
+        android:background="@drawable/circle"
         android:layout_gravity="center"
         android:layout_marginBottom="114dp"
         android:layout_alignParentBottom="true"
