@@ -212,7 +212,10 @@ public class FaceBlurActivity extends Activity {
 //        faceDetector.detectMultiScale(videoMatGray, faces);
 
         faceDetector.detectMultiScale( videoMatGray, faces, 1.1, 3, 0|CV_HAAR_SCALE_IMAGE, minFace, maxFace);
-
+        
+        // TODO: replace this part of code
+        // if face is not detected in the frame, use last detected face for 3 frames
+        // not good practice, should be replaced!
         if (faces.size() == 0 && counter < 3) {
             faces = past_faces;
             counter++;
@@ -220,6 +223,7 @@ public class FaceBlurActivity extends Activity {
             past_faces = faces;
             counter = 0;
         }
+        
         for (int i = 0; i < faces.size() && i < 1; i++) {
             opencv_core.Rect face_i = faces.get(i);
             // And finally write all we've found out to the original image!
