@@ -14,6 +14,16 @@ An Android application that records video and blurs face with javaCV (OpenCV, FF
 ### Import project
 Check out [this video](https://www.youtube.com/watch?v=E0MjorpDWxc)
 
+### Expected behavior of this app
+
+1) Enter the app: three buttons are displayed: "Record in app", "FaceBlur" and "Record with camera app"
+
+2) Click on "Record in app": a video preview (with a circle displaying where to place the head) and button "start" are displayed. Clicking on the button will start recording video and clicking on it again will stop recording video. After done recording video, the video will be saved to DCIM/stream.mp4
+
+3) Click on "FaceBlur", a button and a text are displayed, clicking on the button will start reading DCIM/sample_video.mp4, blur the face and save the new video to DCIM/result.mp4
+
+4) Click on "Record with camera app", a button and a video view are displayed. Clicking on the video will open the Camera APP. After taking a video with Camera APP, the video will be saved to DCIM/sample_video.mp4. And the video will be displayed in the app as well. Also if there is already a file called sample_video.mp4 in DCIM folder, the app might alert you that it failed in capturing a video, because an alert is thrown whenever there is a real error or when there is a file in existing path. It will still does the job for you but you need to bare with the error message.
+
 ### Directory structure
 ~~~
 app/ - app directory
