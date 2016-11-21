@@ -184,7 +184,7 @@ public class FaceBlurActivity extends Activity {
 
         InputStream is = getResources().openRawResource(R.raw.haarcascade_frontalface_default);
         File cascadeDir = getDir("cascade", Context.MODE_PRIVATE);
-        File mCascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
+        File mCascadeFile = new File(cascadeDir, "frontalface.xml");
         FileOutputStream os = new FileOutputStream(mCascadeFile);
 
         byte[] buffer = new byte[4096];
