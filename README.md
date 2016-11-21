@@ -2,6 +2,14 @@
 
 An Android application that records video and blurs face with javaCV (OpenCV, FFmpeg libraries)
 
+### Detailed documents
+
+You can find detailed documentations & tutorials in the documents below. Please check Lab_Report_2 because it is the latest version. Feel free to check Lab_Report_1 for details about Android Studio, but when there are conflicts, always refer to the latest version.
+
+[Lab_Report_1](https://github.com/YinaZ/FaceBlurring/blob/master/documents/Lab_Report_PDF.pdf)
+
+[Lab_Report_2 (latest version!)](https://github.com/YinaZ/FaceBlurring/blob/master/documents/Lab_Report_PDF2.pdf)
+
 ### Installation
 
 1) Install Android Studio [here](https://developer.android.com/studio/index.html)
